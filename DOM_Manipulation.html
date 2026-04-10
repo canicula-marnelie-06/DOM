@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interactive Personal Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    /* ===== CSS VARIABLES & RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161b25;
+      --card:      #22294f;
+      --border:    #2a3349;
+      --accent:    #0ccde7;
+      --accent2:   #5b8de8;
+      --danger:    #e05c6a;
+      --text:      #e8ecf4;
+      --muted:     #7a8aaa;
+      --highlight: rgba(232, 196, 122, 0.18);
+      --hover-bg:  rgba(91, 141, 232, 0.12);
+      --radius:    14px;
+      --shadow:    0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    /* ===== NOISE TEXTURE OVERLAY ===== */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ===== HEADER BANNER ===== */
+    .page-header {
+      background: linear-gradient(135deg, #131929 0%, #0d1220 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .page-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+    .page-header .tagline { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    /* ===== RESET BUTTON ===== */
+    #resetBtn {
+      background: transparent;
+      border: 1.5px solid var(--danger);
+      color: var(--danger);
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 7px;
+      transition: all 0.2s;
+    }
+    #resetBtn:hover { background: var(--danger); color: #fff; }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 28px;
+      position: relative; z-index: 1;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 20px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+    .card-title i { font-size: 0.95rem; opacity: 0.85; }
+
+    /* ===== PROFILE SIDEBAR ===== */
+    .sidebar { display: flex; flex-direction: column; gap: 28px; }
+
+    /* Profile Card */
+    .profile-card {
+      text-align: center;
+      padding: 36px 28px 28px;
+    }
+
+    /* Profile Picture */
+    .avatar-wrapper {
+      position: relative;
+      width: 120px; height: 120px;
+      margin: 0 auto 20px;
+      cursor: pointer;
+    }
+    .avatar-wrapper img {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--accent);
+      display: block;
+      transition: filter 0.25s, transform 0.25s;
+    }
+    .avatar-wrapper:hover img { filter: brightness(0.6); transform: scale(1.03); }
+    .avatar-overlay {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.25s;
+      pointer-events: none;
+    }
+    .avatar-wrapper:hover .avatar-overlay { opacity: 1; }
+    .avatar-overlay i { color: #fff; font-size: 1.4rem; }
+    #fileInput { display: none; }
+
+    /* Name */
+    .profile-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    .profile-name-input {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.45rem;
+      font-weight: 700;
+      text-align: center;
+      background: var(--surface);
+      color: var(--text);
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      padding: 4px 12px;
+      width: 100%;
+      outline: none;
+      margin-bottom: 4px;
+    }
+
+    /* Bio */
+    .profile-bio {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 10px 0 16px;
+    }
+    .profile-bio-input {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      color: var(--text);
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      padding: 8px 12px;
+      width: 100%;
+      outline: none;
+      resize: vertical;
+      min-height: 70px;
+      margin: 10px 0 16px;
+      line-height: 1.6;
+    }
+
+    /* Edit Buttons */
+    .edit-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 5px;
+      transition: all 0.18s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .edit-btn.active { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ===== SKILLS & HOBBIES LIST ===== */
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .item-list li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.18s, border-color 0.18s, transform 0.15s;
+      font-size: 0.9rem;
+      position: relative;
+    }
+    .item-list li:hover { background: var(--hover-bg); border-color: var(--accent2); }
+    .item-list li.selected { background: var(--highlight); border-color: var(--accent); color: var(--accent); }
+    .item-list li.dragging { opacity: 0.4; }
+    .item-list li.drag-over { border-color: var(--accent2); transform: scale(1.02); }
+
+    .item-list li .drag-handle {
+      color: var(--muted); font-size: 0.75rem; cursor: grab;
+    }
+    .item-list li .item-label { flex: 1; }
+    .item-list li .item-check {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .item-list li.selected .item-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .item-list li.selected .item-check::after {
+      content: '✓';
+      font-size: 0.7rem;
+      color: #000;
+      font-weight: 700;
+    }
+
+    /* ===== SECTION BUTTONS ===== */
+    .section-actions {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .btn {
+      padding: 7px 15px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      border: none;
+      transition: all 0.18s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #0d0f14;
+    }
+    .btn-primary:hover { background: #f0d090; }
+    .btn-danger {
+      background: transparent;
+      border: 1.5px solid var(--danger);
+      color: var(--danger);
+    }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ===== INLINE ADD INPUT ===== */
+    .add-input-wrap {
+      display: none;
+      margin-top: 10px;
+    }
+    .add-input-wrap.visible { display: flex; gap: 8px; }
+    .add-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1.5px solid var(--accent2);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    .add-input::placeholder { color: var(--muted); }
+
+    /* ===== EDUCATION SECTION ===== */
+    .edu-record {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .edu-field {
+      font-size: 0.88rem;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .edu-field label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      width: 70px;
+      flex-shrink: 0;
+    }
+    .edu-value { flex: 1; }
+    .edu-input {
+      flex: 1;
+      background: var(--card);
+      border: 1.5px solid var(--accent);
+      border-radius: 6px;
+      padding: 4px 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    .edu-actions {
+      display: flex; gap: 7px;
+      margin-top: 10px;
+    }
+    .edu-remove-btn {
+      position: absolute; top: 12px; right: 12px;
+      background: transparent; border: none;
+      color: var(--muted); cursor: pointer; font-size: 0.9rem;
+      transition: color 0.15s;
+    }
+    .edu-remove-btn:hover { color: var(--danger); }
+
+    /* ===== RIGHT COLUMN ===== */
+    .main-col { display: flex; flex-direction: column; gap: 28px; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 760px) {
+      .container { grid-template-columns: 1fr; }
+      .page-header { padding: 14px 20px; }
+      .page-header h1 { font-size: 1.1rem; }
+    }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .card { animation: fadeIn 0.45s ease both; }
+    .card:nth-child(2) { animation-delay: 0.07s; }
+    .card:nth-child(3) { animation-delay: 0.14s; }
+    .card:nth-child(4) { animation-delay: 0.21s; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--card);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="page-header">
+  <div>
+    <h1><i class="fa-solid fa-id-card"></i> &nbsp;Personal Profile</h1>
+    <div class="tagline">Interactive DOM Manipulation</div>
+  </div>
+  <button id="resetBtn"><i class="fa-solid fa-rotate-left"></i> Reset All</button>
+</header>
+
+<!-- ===== MAIN LAYOUT ===== -->
+<div class="container">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+
+    <!-- Profile Card -->
+    <div class="card profile-card">
+      <!-- Profile Picture -->
+      <div class="avatar-wrapper" id="avatarWrapper" title="Click to change photo">
+        <img id="profilePic" src="MARNELIE D. CANICULA.jpeg" alt="Profile Picture"/>
+        <div class="avatar-overlay"><i class="fa-solid fa-camera"></i></div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*"/>
+
+      <!-- Name -->
+      <h2 class="profile-name" id="profileName">MARNELIE D.CANICULA</h2>
+      <input type="text" class="profile-name-input" id="nameInput" style="display:none;"/>
+      <div style="margin-bottom:6px;">
+        <button class="edit-btn" id="editNameBtn"><i class="fa-solid fa-pen"></i> Edit Name</button>
+      </div>
+
+      <!-- Bio -->
+      <p class="profile-bio" id="profileBio">BSIT-2D / 2nd Year Student</p>
+      <textarea class="profile-bio-input" id="bioInput" style="display:none;"></textarea>
+      <div>
+        <button class="edit-btn" id="editBioBtn"><i class="fa-solid fa-pen"></i> Edit Bio</button>
+      </div>
+    </div>
+
+    <!-- Education Card -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-graduation-cap"></i> Education</div>
+      <div id="eduList"></div>
+      <div class="section-actions" style="margin-top:4px;">
+        <button class="btn btn-primary" id="addEduBtn"><i class="fa-solid fa-plus"></i> Add Record</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ===== MAIN COLUMN ===== -->
+  <main class="main-col">
+
+    <!-- Skills Card -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-code"></i> Skills</div>
+      <ul class="item-list" id="skillList"></ul>
+      <div class="section-actions">
+        <button class="btn btn-primary" id="addSkillBtn"><i class="fa-solid fa-plus"></i> Add Skill</button>
+        <button class="btn btn-danger" id="deleteSkillBtn"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+      </div>
+      <div class="add-input-wrap" id="skillInputWrap">
+        <input type="text" class="add-input" id="skillInput" placeholder="Type a skill and press Enter…"/>
+      </div>
+    </div>
+
+    <!-- Hobbies Card -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-heart"></i> Hobbies</div>
+      <ul class="item-list" id="hobbyList"></ul>
+      <div class="section-actions">
+        <button class="btn btn-primary" id="addHobbyBtn"><i class="fa-solid fa-plus"></i> Add Hobby</button>
+        <button class="btn btn-danger" id="deleteHobbyBtn"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+      </div>
+      <div class="add-input-wrap" id="hobbyInputWrap">
+        <input type="text" class="add-input" id="hobbyInput" placeholder="Type a hobby and press Enter…"/>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast"></div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+/* ================================================
+   DEFAULTS — original state for reset
+   ================================================ */
+const DEFAULTS = {
+  name: 'MARNELIE D. CANICULA',
+  bio: 'BSIT-2D / 2nd Year Student',
+  profilePic: 'MARNELIE D. CANICULA.jpeg',
+  skills: ['designer', 'Time management', 'Critical thinker', 'leadership', 'Adaptability'],
+  hobbies: ['Reading', 'Photography', 'designing', 'Game Development', 'Gardening'],
+  education: [
+    { school: 'Partido State University', course: 'Bachelor of Science in Information Technology', year: '2025-2026' }
+  ]
+};
+
+/* ================================================
+   STATE — live data, loaded from LocalStorage
+   ================================================ */
+let state = loadState();
+
+/* ================================================
+   UTILITY — LocalStorage helpers
+   ================================================ */
+function loadState() {
+  try {
+    const saved = localStorage.getItem('profileState');
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
+  } catch { return JSON.parse(JSON.stringify(DEFAULTS)); }
+}
+
+function saveState() {
+  localStorage.setItem('profileState', JSON.stringify(state));
+}
+
+/* ================================================
+   UTILITY — Toast notification
+   ================================================ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ================================================
+   UTILITY — Console logger (all actions)
+   ================================================ */
+function log(action) {
+  console.log(`%c[Profile] %c${action}`, 'color:#e8c47a;font-weight:bold;', 'color:#e8ecf4;');
+}
+
+/* ================================================
+   PROFILE PICTURE
+   ================================================ */
+const avatarWrapper = document.getElementById('avatarWrapper');
+const profilePic    = document.getElementById('profilePic');
+const fileInput     = document.getElementById('fileInput');
+
+// Load saved picture
+if (state.profilePic) profilePic.src = state.profilePic;
+
+avatarWrapper.addEventListener('click', () => {
+  fileInput.click();
+  log('Profile picture selector opened');
+});
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    profilePic.src = dataUrl;
+    state.profilePic = dataUrl;
+    saveState();
+    log('Profile picture updated');
+    showToast('Profile picture updated!');
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+});
+
+/* ================================================
+   NAME — Inline Editing
+   ================================================ */
+const profileName = document.getElementById('profileName');
+const nameInput   = document.getElementById('nameInput');
+const editNameBtn = document.getElementById('editNameBtn');
+
+profileName.textContent = state.name;
+
+function startNameEdit() {
+  nameInput.value = state.name;
+  profileName.style.display = 'none';
+  nameInput.style.display = 'block';
+  nameInput.focus();
+  editNameBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+  editNameBtn.classList.add('active');
+  log('Name edit started');
+}
+
+function saveNameEdit() {
+  const val = nameInput.value.trim() || state.name;
+  state.name = val;
+  profileName.textContent = val;
+  profileName.style.display = '';
+  nameInput.style.display = 'none';
+  editNameBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Name';
+  editNameBtn.classList.remove('active');
+  saveState();
+  log(`Name edited: ${val}`);
+  showToast('Name saved!');
+}
+
+editNameBtn.addEventListener('click', () => {
+  if (nameInput.style.display === 'none' || !nameInput.style.display) startNameEdit();
+  else saveNameEdit();
+});
+nameInput.addEventListener('blur', () => { if (nameInput.style.display !== 'none') saveNameEdit(); });
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveNameEdit(); } });
+
+/* ================================================
+   BIO — Inline Editing
+   ================================================ */
+const profileBio = document.getElementById('profileBio');
+const bioInput   = document.getElementById('bioInput');
+const editBioBtn = document.getElementById('editBioBtn');
+
+profileBio.textContent = state.bio;
+
+function startBioEdit() {
+  bioInput.value = state.bio;
+  profileBio.style.display = 'none';
+  bioInput.style.display = 'block';
+  bioInput.focus();
+  editBioBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+  editBioBtn.classList.add('active');
+  log('Bio edit started');
+}
+
+function saveBioEdit() {
+  const val = bioInput.value.trim() || state.bio;
+  state.bio = val;
+  profileBio.textContent = val;
+  profileBio.style.display = '';
+  bioInput.style.display = 'none';
+  editBioBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Bio';
+  editBioBtn.classList.remove('active');
+  saveState();
+  log(`Bio edited`);
+  showToast('Bio saved!');
+}
+
+editBioBtn.addEventListener('click', () => {
+  if (bioInput.style.display === 'none' || !bioInput.style.display) startBioEdit();
+  else saveBioEdit();
+});
+bioInput.addEventListener('blur', () => { if (bioInput.style.display !== 'none') saveBioEdit(); });
+bioInput.addEventListener('keydown', e => { if (e.key === 'Enter' && e.shiftKey) { saveBioEdit(); } });
+
+/* ================================================
+   GENERIC LIST RENDERER (Skills & Hobbies)
+   ================================================ */
+function renderList(ulId, items, type) {
+  const ul = document.getElementById(ulId);
+  ul.innerHTML = '';
+
+  items.forEach((item, index) => {
+    const li = document.createElement('li');
+    li.dataset.index = index;
+    li.draggable = true;
+
+    // Drag handle
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.innerHTML = '<i class="fa-solid fa-grip-vertical"></i>';
+    li.appendChild(handle);
+
+    // Checkbox visual
+    const check = document.createElement('span');
+    check.className = 'item-check';
+    li.appendChild(check);
+
+    // Label
+    const label = document.createElement('span');
+    label.className = 'item-label';
+    label.textContent = item;
+    li.appendChild(label);
+
+    // CLICK → toggle highlight (single or multi with Ctrl)
+    li.addEventListener('click', e => {
+      if (e.ctrlKey || e.metaKey) {
+        li.classList.toggle('selected');
+        log(`${type} ${li.classList.contains('selected') ? 'selected' : 'deselected'}: ${item}`);
+      } else {
+        // single select: deselect others
+        ul.querySelectorAll('li').forEach(el => el !== li && el.classList.remove('selected'));
+        li.classList.toggle('selected');
+        log(`${type} ${li.classList.contains('selected') ? 'selected' : 'deselected'}: ${item}`);
+      }
+    });
+
+    // DRAG & DROP
+    li.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index);
+      setTimeout(() => li.classList.add('dragging'), 0);
+      log(`${type} drag started: ${item}`);
+    });
+    li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    li.addEventListener('dragover', e => {
+      e.preventDefault();
+      ul.querySelectorAll('li').forEach(el => el.classList.remove('drag-over'));
+      li.classList.add('drag-over');
+    });
+    li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
+    li.addEventListener('drop', e => {
+      e.preventDefault();
+      li.classList.remove('drag-over');
+      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+      const toIndex   = parseInt(li.dataset.index);
+      if (fromIndex === toIndex) return;
+      if (type === 'Skill') {
+        const arr = state.skills;
+        arr.splice(toIndex, 0, arr.splice(fromIndex, 1)[0]);
+      } else {
+        const arr = state.hobbies;
+        arr.splice(toIndex, 0, arr.splice(fromIndex, 1)[0]);
+      }
+      saveState();
+      renderList(ulId, type === 'Skill' ? state.skills : state.hobbies, type);
+      log(`${type} reordered`);
+      showToast(`${type} reordered!`);
+    });
+
+    ul.appendChild(li);
+  });
+}
+
+/* ================================================
+   SKILLS
+   ================================================ */
+const skillList      = document.getElementById('skillList');
+const addSkillBtn    = document.getElementById('addSkillBtn');
+const deleteSkillBtn = document.getElementById('deleteSkillBtn');
+const skillInputWrap = document.getElementById('skillInputWrap');
+const skillInput     = document.getElementById('skillInput');
+
+function renderSkills() { renderList('skillList', state.skills, 'Skill'); }
+renderSkills();
+
+// Add skill
+addSkillBtn.addEventListener('click', () => {
+  skillInputWrap.classList.toggle('visible');
+  if (skillInputWrap.classList.contains('visible')) skillInput.focus();
+  log('Add Skill input toggled');
+});
+
+skillInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = skillInput.value.trim();
+    if (val) {
+      state.skills.push(val);
+      saveState();
+      renderSkills();
+      skillInput.value = '';
+      skillInputWrap.classList.remove('visible');
+      log(`Skill added: ${val}`);
+      showToast(`Skill "${val}" added!`);
+    }
+  }
+  if (e.key === 'Escape') {
+    skillInputWrap.classList.remove('visible');
+    skillInput.value = '';
+  }
+});
+
+// Delete selected skills
+deleteSkillBtn.addEventListener('click', () => {
+  const selected = [...skillList.querySelectorAll('li.selected')];
+  if (!selected.length) { showToast('No skills selected!'); return; }
+  const indices = selected.map(li => parseInt(li.dataset.index)).sort((a,b) => b - a);
+  indices.forEach(i => state.skills.splice(i, 1));
+  saveState();
+  renderSkills();
+  log('Skill(s) deleted');
+  showToast('Selected skill(s) deleted!');
+});
+
+/* ================================================
+   HOBBIES
+   ================================================ */
+const hobbyList      = document.getElementById('hobbyList');
+const addHobbyBtn    = document.getElementById('addHobbyBtn');
+const deleteHobbyBtn = document.getElementById('deleteHobbyBtn');
+const hobbyInputWrap = document.getElementById('hobbyInputWrap');
+const hobbyInput     = document.getElementById('hobbyInput');
+
+function renderHobbies() { renderList('hobbyList', state.hobbies, 'Hobby'); }
+renderHobbies();
+
+// Add hobby
+addHobbyBtn.addEventListener('click', () => {
+  hobbyInputWrap.classList.toggle('visible');
+  if (hobbyInputWrap.classList.contains('visible')) hobbyInput.focus();
+  log('Add Hobby input toggled');
+});
+
+hobbyInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = hobbyInput.value.trim();
+    if (val) {
+      state.hobbies.push(val);
+      saveState();
+      renderHobbies();
+      hobbyInput.value = '';
+      hobbyInputWrap.classList.remove('visible');
+      log(`Hobby added: ${val}`);
+      showToast(`Hobby "${val}" added!`);
+    }
+  }
+  if (e.key === 'Escape') {
+    hobbyInputWrap.classList.remove('visible');
+    hobbyInput.value = '';
+  }
+});
+
+// Delete selected hobbies
+deleteHobbyBtn.addEventListener('click', () => {
+  const selected = [...hobbyList.querySelectorAll('li.selected')];
+  if (!selected.length) { showToast('No hobbies selected!'); return; }
+  const indices = selected.map(li => parseInt(li.dataset.index)).sort((a,b) => b - a);
+  indices.forEach(i => state.hobbies.splice(i, 1));
+  saveState();
+  renderHobbies();
+  log('Hobby(ies) deleted');
+  showToast('Selected hobby(ies) deleted!');
+});
+
+/* ================================================
+   EDUCATION
+   ================================================ */
+const eduList   = document.getElementById('eduList');
+const addEduBtn = document.getElementById('addEduBtn');
+
+function renderEducation() {
+  eduList.innerHTML = '';
+  state.education.forEach((rec, idx) => {
+    const card = document.createElement('div');
+    card.className = 'edu-record';
+
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'edu-remove-btn';
+    removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    removeBtn.title = 'Remove record';
+    removeBtn.addEventListener('click', () => {
+      state.education.splice(idx, 1);
+      saveState();
+      renderEducation();
+      log(`Education record removed: ${rec.school}`);
+      showToast('Education record removed!');
+    });
+    card.appendChild(removeBtn);
+
+    // Fields: school, course, year
+    const fields = [
+      { label: 'School', key: 'school' },
+      { label: 'Course',  key: 'course' },
+      { label: 'Year',    key: 'year' }
+    ];
+
+    fields.forEach(({ label, key }) => {
+      const row = document.createElement('div');
+      row.className = 'edu-field';
+
+      const lbl = document.createElement('label');
+      lbl.textContent = label;
+      row.appendChild(lbl);
+
+      // Display span
+      const span = document.createElement('span');
+      span.className = 'edu-value';
+      span.textContent = rec[key];
+      row.appendChild(span);
+
+      card.appendChild(row);
+    });
+
+    // Edit / Save button
+    const actions = document.createElement('div');
+    actions.className = 'edu-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit';
+    let editing = false;
+
+    editBtn.addEventListener('click', () => {
+      if (!editing) {
+        // Switch to inputs
+        card.querySelectorAll('.edu-field').forEach((row, fi) => {
+          const key = fields[fi].key;
+          const span = row.querySelector('.edu-value');
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'edu-input';
+          input.value = rec[key];
+          input.dataset.key = key;
+          span.replaceWith(input);
+
+          const saveField = () => {
+            state.education[idx][key] = input.value.trim() || rec[key];
+            saveState();
+          };
+          input.addEventListener('blur', saveField);
+          input.addEventListener('keydown', e => { if (e.key === 'Enter') { saveField(); saveAll(); } });
+        });
+
+        editBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+        editBtn.classList.add('active');
+        editing = true;
+        log(`Education edit started: ${rec.school}`);
+      } else {
+        saveAll();
+      }
+    });
+
+    function saveAll() {
+      card.querySelectorAll('.edu-input').forEach(input => {
+        const key = input.dataset.key;
+        state.education[idx][key] = input.value.trim() || state.education[idx][key];
+      });
+      saveState();
+      renderEducation();
+      log(`Education record saved: ${state.education[idx]?.school || ''}`);
+      showToast('Education record saved!');
+    }
+
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+    eduList.appendChild(card);
+  });
+}
+
+renderEducation();
+
+addEduBtn.addEventListener('click', () => {
+  state.education.push({ school: 'PSU', course: 'BSIT', year: '2025-2026' });
+  saveState();
+  renderEducation();
+  log('Education record added');
+  showToast('Education record added!');
+});
+
+/* ================================================
+   RESET BUTTON
+   ================================================ */
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Reset all data to default? This cannot be undone.')) return;
+  localStorage.removeItem('profileState');
+  state = JSON.parse(JSON.stringify(DEFAULTS));
+  saveState();
+
+  // Reset UI
+  profilePic.src = DEFAULTS.profilePic;
+  profileName.textContent = DEFAULTS.name;
+  profileBio.textContent  = DEFAULTS.bio;
+
+  // Ensure display states
+  nameInput.style.display = 'none';
+  bioInput.style.display  = 'none';
+  profileName.style.display = '';
+  profileBio.style.display  = '';
+  editNameBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Name';
+  editBioBtn.innerHTML  = '<i class="fa-solid fa-pen"></i> Edit Bio';
+  editNameBtn.classList.remove('active');
+  editBioBtn.classList.remove('active');
+
+  renderSkills();
+  renderHobbies();
+  renderEducation();
+  log('Profile reset to defaults');
+  showToast('Profile reset to defaults!');
+});
+
+/* ================================================
+   INITIAL CONSOLE BANNER
+   ================================================ */
+console.log('%c🖥 Interactive Profile Page Loaded', 'color:#e8c47a;font-size:14px;font-weight:bold;');
+console.log('%cAll user actions will be logged here.', 'color:#7a8aaa;');
+</script>
+</body>
+</html>
